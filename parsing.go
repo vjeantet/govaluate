@@ -104,7 +104,7 @@ func readToken(stream *lexerStream, state lexerState) (ExpressionToken, error, b
 		// escaped variable
 		if character == '[' {
 
-			tokenValue, completed = readUntilFalse(stream, true, false, isNotClosingBracket)
+			tokenValue, completed = readUntilFalse(stream, true, false, true, isNotClosingBracket)
 			kind = VARIABLE
 
 			if !completed {
@@ -127,7 +127,7 @@ func readToken(stream *lexerStream, state lexerState) (ExpressionToken, error, b
 		if character == '/' {
 			if state.kind == COMPARATOR {
 
-				tokenValue, completed = readUntilFalseNoEscape(stream, true, false, isNotClosingSlash)
+				tokenValue, completed = readUntilFalse(stream, true, false, false, isNotClosingSlash)
 				kind = PATTERN
 
 				if !completed {
@@ -173,7 +173,7 @@ func readToken(stream *lexerStream, state lexerState) (ExpressionToken, error, b
 		}
 
 		if !isNotQuote(character) {
-			tokenValue, completed = readUntilFalse(stream, true, false, isNotQuote)
+			tokenValue, completed = readUntilFalse(stream, true, false, false, isNotQuote)
 
 			if !completed {
 				return ExpressionToken{}, errors.New("Unclosed string literal"), false
@@ -254,7 +254,7 @@ func readTokenUntilFalse(stream *lexerStream, condition func(rune) bool) string 
 	var ret string
 
 	stream.rewind(1)
-	ret, _ = readUntilFalse(stream, false, true, condition)
+	ret, _ = readUntilFalse(stream, false, true, true, condition)
 	return ret
 }
 
@@ -262,7 +262,7 @@ func readTokenUntilFalse(stream *lexerStream, condition func(rune) bool) string 
 	Returns the string that was read until the given [condition] was false, or whitespace was broken.
 	Returns false if the stream ended before whitespace was broken or condition was met.
 */
-func readUntilFalse(stream *lexerStream, includeWhitespace bool, breakWhitespace bool, condition func(rune) bool) (string, bool) {
+func readUntilFalse(stream *lexerStream, includeWhitespace bool, breakWhitespace bool, allowEscaping bool, condition func(rune) bool) (string, bool) {
 
 	var tokenBuffer bytes.Buffer
 	var character rune
@@ -275,55 +275,12 @@ func readUntilFalse(stream *lexerStream, includeWhitespace bool, breakWhitespace
 		character = stream.readCharacter()
 
 		// Use backslashes to escape anything
-		if character == '\\' {
+		if allowEscaping && character == '\\' {
 
 			character = stream.readCharacter()
 			tokenBuffer.WriteString(string(character))
 			continue
 		}
-
-		if unicode.IsSpace(character) {
-
-			if breakWhitespace && tokenBuffer.Len() > 0 {
-				conditioned = true
-				break
-			}
-			if !includeWhitespace {
-				continue
-			}
-		}
-
-		if condition(character) {
-			tokenBuffer.WriteString(string(character))
-		} else {
-			conditioned = true
-			stream.rewind(1)
-			break
-		}
-	}
-
-	return tokenBuffer.String(), conditioned
-}
-
-func readUntilFalseNoEscape(stream *lexerStream, includeWhitespace bool, breakWhitespace bool, condition func(rune) bool) (string, bool) {
-
-	var tokenBuffer bytes.Buffer
-	var character rune
-	var conditioned bool
-
-	conditioned = false
-
-	for stream.canRead() {
-
-		character = stream.readCharacter()
-
-		// Use backslashes to escape anything
-		// if character == '\\' {
-
-		// 	character = stream.readCharacter()
-		// 	tokenBuffer.WriteString(string(character))
-		// 	continue
-		// }
 
 		if unicode.IsSpace(character) {
 

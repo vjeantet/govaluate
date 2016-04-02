@@ -12,6 +12,8 @@ import (
 
 const isoDateFormat string = "2006-01-02T15:04:05.999999999Z0700"
 
+var DUMMY_PARAMETERS = map[string]interface{}{}
+
 /*
 	EvaluableExpression represents a set of ExpressionTokens which, taken together,
 	represent an arbitrary expression that can be evaluated down into a single value.
@@ -135,6 +137,14 @@ func evaluateLogical(stream *tokenStream, parameters map[string]interface{}) (in
 			return nil, err
 		}
 
+		// make sure that we're only operating on the appropriate types
+		if !isBool(value) {
+			return nil, errors.New(fmt.Sprintf("Value '%v' cannot be used with the logical operator '%v', it is not a bool", value, token.Value))
+		}
+		if !isBool(newValue) {
+			return nil, errors.New(fmt.Sprintf("Value '%v' cannot be used with the logical operator '%v', it is not a bool", newValue, token.Value))
+		}
+
 		if symbol == OR {
 			return value.(bool) || newValue.(bool), nil
 		} else if symbol == AND {
@@ -180,6 +190,16 @@ func evaluateComparator(stream *tokenStream, parameters map[string]interface{}) 
 		rightValue, err = evaluateAdditiveModifier(stream, parameters)
 		if err != nil {
 			return nil, err
+		}
+
+		// make sure that we're only operating on the appropriate types
+		if symbol != EQ && symbol != NEQ && symbol != REGEX && symbol != REGEXNOT && symbol != IN && symbol != NOTIN {
+			if !isFloat64(value) {
+				return nil, errors.New(fmt.Sprintf("Value '%v' cannot be used with the comparator '%v', it is not a number", value, token.Value))
+			}
+			if !isFloat64(rightValue) {
+				return nil, errors.New(fmt.Sprintf("Value '%v' cannot be used with the comparator '%v', it is not a number", rightValue, token.Value))
+			}
 		}
 
 		switch symbol {
@@ -273,26 +293,31 @@ func evaluateAdditiveModifier(stream *tokenStream, parameters map[string]interfa
 			break
 		}
 
+		// short-circuit if this is, in fact, not an additive modifier
+		if !symbol.IsModifierType(ADDITIVE_MODIFIERS) {
+			stream.rewind()
+			return value, nil
+		}
+
+		rightValue, err = evaluateMultiplicativeModifier(stream, parameters)
+		if err != nil {
+			return nil, err
+		}
+
+		// make sure that we're only operating on the appropriate types
+		if !isFloat64(value) {
+			return nil, errors.New(fmt.Sprintf("Value '%v' cannot be used with the modifier '%v', it is not a number", value, token.Value))
+		}
+		if !isFloat64(rightValue) {
+			return nil, errors.New(fmt.Sprintf("Value '%v' cannot be used with the modifier '%v', it is not a number", rightValue, token.Value))
+		}
+
 		switch symbol {
 
 		case PLUS:
-			rightValue, err = evaluateMultiplicativeModifier(stream, parameters)
-			if err != nil {
-				return nil, err
-			}
 			value = value.(float64) + rightValue.(float64)
-
 		case MINUS:
-			rightValue, err = evaluateMultiplicativeModifier(stream, parameters)
-			if err != nil {
-				return nil, err
-			}
-
 			return value.(float64) - rightValue.(float64), nil
-
-		default:
-			stream.rewind()
-			return value, nil
 		}
 	}
 
@@ -327,32 +352,33 @@ func evaluateMultiplicativeModifier(stream *tokenStream, parameters map[string]i
 			break
 		}
 
+		// short circuit if this is, in fact, not multiplicative.
+		if !symbol.IsModifierType(MULTIPLICATIVE_MODIFIERS) {
+			stream.rewind()
+			return value, nil
+		}
+
+		rightValue, err = evaluateMultiplicativeModifier(stream, parameters)
+		if err != nil {
+			return nil, err
+		}
+
+		// make sure that we're only operating on the appropriate types
+		if !isFloat64(value) {
+			return nil, errors.New(fmt.Sprintf("Value '%v' cannot be used with the modifier '%v', it is not a number", value, token.Value))
+		}
+		if !isFloat64(rightValue) {
+			return nil, errors.New(fmt.Sprintf("Value '%v' cannot be used with the modifier '%v', it is not a number", rightValue, token.Value))
+		}
+
 		switch symbol {
 
 		case MULTIPLY:
-			rightValue, err = evaluateMultiplicativeModifier(stream, parameters)
-			if err != nil {
-				return nil, err
-			}
 			return value.(float64) * rightValue.(float64), nil
-
 		case DIVIDE:
-			rightValue, err = evaluateMultiplicativeModifier(stream, parameters)
-			if err != nil {
-				return nil, err
-			}
 			return value.(float64) / rightValue.(float64), nil
-
 		case MODULUS:
-			rightValue, err = evaluateMultiplicativeModifier(stream, parameters)
-			if err != nil {
-				return nil, err
-			}
 			return math.Mod(value.(float64), rightValue.(float64)), nil
-
-		default:
-			stream.rewind()
-			return value, nil
 		}
 	}
 
@@ -387,18 +413,28 @@ func evaluateExponentialModifier(stream *tokenStream, parameters map[string]inte
 			break
 		}
 
-		switch symbol {
-
-		case EXPONENT:
-			rightValue, err = evaluateExponentialModifier(stream, parameters)
-			if err != nil {
-				return nil, err
-			}
-			return math.Pow(value.(float64), rightValue.(float64)), nil
-
-		default:
+		// if this isn't actually an exponential modifier, rewind and return.
+		if !symbol.IsModifierType(EXPONENTIAL_MODIFIERS) {
 			stream.rewind()
 			return value, nil
+		}
+
+		rightValue, err = evaluateExponentialModifier(stream, parameters)
+		if err != nil {
+			return nil, err
+		}
+
+		// make sure that we're only operating on the appropriate types
+		if !isFloat64(value) {
+			return nil, errors.New(fmt.Sprintf("Value '%v' cannot be used with the modifier '%v', it is not a number", value, token.Value))
+		}
+		if !isFloat64(rightValue) {
+			return nil, errors.New(fmt.Sprintf("Value '%v' cannot be used with the modifier '%v', it is not a number", rightValue, token.Value))
+		}
+
+		switch symbol {
+		case EXPONENT:
+			return math.Pow(value.(float64), rightValue.(float64)), nil
 		}
 	}
 
@@ -427,22 +463,19 @@ func evaluatePrefix(stream *tokenStream, parameters map[string]interface{}) (int
 			break
 		}
 
+		// TODO: need a prefix operator symbol check?
+
+		value, err = evaluateValue(stream, parameters)
+		if err != nil {
+			return nil, err
+		}
+
 		switch symbol {
 
 		case INVERT:
-			value, err = evaluateValue(stream, parameters)
-			if err != nil {
-				return nil, err
-			}
-
 			return !value.(bool), nil
 
 		case NEGATE:
-			value, err = evaluateValue(stream, parameters)
-			if err != nil {
-				return nil, err
-			}
-
 			return -value.(float64), nil
 
 		default:
@@ -708,6 +741,10 @@ func sanitizeParamters(parameters map[string]interface{}) (map[string]interface{
 	var needsSanitization bool
 	var err error
 
+	if parameters == nil {
+		return DUMMY_PARAMETERS, nil
+	}
+
 	// we don't copy anything unless there is something that needs to be sanitized.
 	needsSanitization = false
 
@@ -819,8 +856,22 @@ func isString(value interface{}) bool {
 	switch value.(type) {
 	case string:
 		return true
-	default:
-		break
+	}
+	return false
+}
+
+func isBool(value interface{}) bool {
+	switch value.(type) {
+	case bool:
+		return true
+	}
+	return false
+}
+
+func isFloat64(value interface{}) bool {
+	switch value.(type) {
+	case float64:
+		return true
 	}
 	return false
 }
