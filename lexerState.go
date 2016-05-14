@@ -10,7 +10,7 @@ type lexerState struct {
 // Constant for all purposes except compiler.
 var validLexerStates = []lexerState{
 
-	lexerState{
+	{
 
 		kind:  CLAUSE,
 		isEOF: false,
@@ -27,7 +27,7 @@ var validLexerStates = []lexerState{
 		},
 	},
 
-	lexerState{
+	{
 
 		kind:  CLAUSE_CLOSE,
 		isEOF: true,
@@ -47,7 +47,7 @@ var validLexerStates = []lexerState{
 		},
 	},
 
-	lexerState{
+	{
 
 		kind:  NUMERIC,
 		isEOF: true,
@@ -59,7 +59,7 @@ var validLexerStates = []lexerState{
 			CLAUSE_CLOSE,
 		},
 	},
-	lexerState{
+	{
 
 		kind:  BOOLEAN,
 		isEOF: true,
@@ -71,7 +71,7 @@ var validLexerStates = []lexerState{
 			CLAUSE_CLOSE,
 		},
 	},
-	lexerState{
+	{
 
 		kind:  PATTERN,
 		isEOF: true,
@@ -83,7 +83,7 @@ var validLexerStates = []lexerState{
 			CLAUSE_CLOSE,
 		},
 	},
-	lexerState{
+	{
 
 		kind:  ARRAY,
 		isEOF: true,
@@ -95,7 +95,7 @@ var validLexerStates = []lexerState{
 			CLAUSE_CLOSE,
 		},
 	},
-	lexerState{
+	{
 
 		kind:  STRING,
 		isEOF: true,
@@ -107,7 +107,7 @@ var validLexerStates = []lexerState{
 			CLAUSE_CLOSE,
 		},
 	},
-	lexerState{
+	{
 
 		kind:  TIME,
 		isEOF: true,
@@ -119,7 +119,7 @@ var validLexerStates = []lexerState{
 			CLAUSE_CLOSE,
 		},
 	},
-	lexerState{
+	{
 
 		kind:  VARIABLE,
 		isEOF: true,
@@ -131,7 +131,7 @@ var validLexerStates = []lexerState{
 			CLAUSE_CLOSE,
 		},
 	},
-	lexerState{
+	{
 
 		kind:  MODIFIER,
 		isEOF: false,
@@ -144,7 +144,7 @@ var validLexerStates = []lexerState{
 			CLAUSE_CLOSE,
 		},
 	},
-	lexerState{
+	{
 
 		kind:  COMPARATOR,
 		isEOF: false,
@@ -162,7 +162,7 @@ var validLexerStates = []lexerState{
 			ARRAY,
 		},
 	},
-	lexerState{
+	{
 
 		kind:  LOGICALOP,
 		isEOF: false,
@@ -178,7 +178,7 @@ var validLexerStates = []lexerState{
 			CLAUSE_CLOSE,
 		},
 	},
-	lexerState{
+	{
 
 		kind:  PREFIX,
 		isEOF: false,

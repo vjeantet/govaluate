@@ -21,19 +21,19 @@ func newLexerStream(source string) *lexerStream {
 	return ret
 }
 
-func (this *lexerStream) readCharacter() rune {
+func (l *lexerStream) readCharacter() rune {
 
 	var character rune
 
-	character = this.source[this.position]
-	this.position += 1
+	character = l.source[l.position]
+	l.position++
 	return character
 }
 
-func (this *lexerStream) rewind(amount int) {
-	this.position -= amount
+func (l *lexerStream) rewind(amount int) {
+	l.position -= amount
 }
 
-func (this lexerStream) canRead() bool {
-	return this.position < this.length
+func (l lexerStream) canRead() bool {
+	return l.position < l.length
 }
